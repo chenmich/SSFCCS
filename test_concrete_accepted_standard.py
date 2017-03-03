@@ -16,37 +16,6 @@
 
 import unittest
 import concrete_accepted_standard as caccep
-class TestAccepted(unittest.TestCase):
-    ''' test the __accepted__ method of concrete_accepted_standard modular
-    '''
-    def setUp(self):
-        self.lambda1 = 1.65
-        self.lambda2 = 0.9
-        self.lambda3 = 0.85
-        self.average = 35.8
-        self.std = 4.3
-        self.fcu_k = 30.0
-        self.fcu_min = 26.0
-    def test_first_condition_true(self):
-        ''' the second condition is True
-        '''
-        self.assertTrue(
-            caccep.__accepted__(self.lambda1, self.lambda2,
-                                self.lambda3, self.average, self.std, self.fcu_k, self.fcu_min))
-    def test_first_condition_false(self):
-        ''' the second condition is True
-        '''
-        #average is less
-        self.average = 33.2
-        self.assertFalse(
-            caccep.__accepted__(self.lambda1, self.lambda2,
-                                self.lambda3, self.average, self.std, self.fcu_k, self.fcu_min))
-        #std is larger
-        self.average = 35.8
-        self.std = 5.5
-        self.assertFalse(
-            caccep.__accepted__(self.lambda1, self.lambda2,
-                                self.lambda3, self.average, self.std, self.fcu_k, self.fcu_min))
 
 if __name__ == '__main__':
     unittest.main()
