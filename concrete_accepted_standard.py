@@ -45,7 +45,7 @@
 import argparse
 from scipy import stats
 import numpy as np
-import writer_to_csv as write
+import writer_to_csv as save
 
 FCUK_LIST = [25, 35, 45, 55]
 PAST_RATE_LIST = [0.99, 0.98, 0.97, 0.96, 0.95, 0.9, 0.8, 0.50, 0.2]#pass rate
@@ -57,7 +57,7 @@ ECHO = 10
 PPF_LIST = stats.norm.ppf(PAST_RATE_LIST)
 
 #set lambad coefficient
-def __get_old_gbj_coefficient__(sample_size):
+def __get_old_gbj_coefficient__(sample_size=None):
     ''' set all the lambda coefficients
     '''
     lambda1 = 0
@@ -65,25 +65,26 @@ def __get_old_gbj_coefficient__(sample_size):
     lambda3 = 0
     lambda4 = 1.15
     lambda5 = 0.95
-    if sample_size >= 10 and sample_size <= 14:
-        lambda1 = 1.70
-        lambda3 = 0.90
-    if sample_size > 15 and sample_size < 24:
-        lambda1 = 1.65
-        lambda3 = 0.85
-    if sample_size >= 25:
-        lambda1 = 1.60
-        lambda3 = 0.85
+    if  sample_size is not None:
+        if sample_size >= 10 and sample_size <= 14:
+            lambda1 = 1.70
+            lambda3 = 0.90
+        if sample_size > 15 and sample_size < 24:
+            lambda1 = 1.65
+            lambda3 = 0.85
+        if sample_size >= 25:
+            lambda1 = 1.60
+            lambda3 = 0.85
     return lambda1, lambda2, lambda3, lambda4, lambda5
 #define accepted for old gbj
 #pylint restrain too many parameters
-def __old_gbj_acception__(average, std, fcuk, fcumin, sample_size):
+def __old_gbj_acception__(average, fcuk, fcumin, std=None, sample_size=None):
     '''This function is for acception by old gbj
     '''
     isaccepted = False
     lambda1, lambda2, lambda3, lambda4, lambda5 = __get_old_gbj_coefficient__(sample_size)
     #sample_size < 10, by non-statistical method
-    if sample_size < 10:
+    if sample_size is None:
         if average >= lambda4*fcuk and fcumin >= lambda5*fcuk:
             isaccepted = True
     #sample_size >=10,by statistical methon
@@ -112,7 +113,7 @@ def __valid_sampling_method__():
                         average = stats.tmean(sample_data)
                         std = stats.tstd(sample_data)
                         fcumin = stats.tmin(sample_data)
-                        if __old_gbj_acception__(average, std, fcuk, fcumin, sample_size):
+                        if __old_gbj_acception__(average, fcuk, fcumin, std, sample_size):
                             accepted_frequence += 1
                     accepted_rate = accepted_frequence / ECHO
                     accepted_rate_list.append(accepted_rate)

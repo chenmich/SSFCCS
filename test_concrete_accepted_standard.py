@@ -16,6 +16,63 @@
 
 import unittest
 import concrete_accepted_standard as caccep
+class test_old_gbj(unittest.TestCase):
+    ''' test the helper for old_gjb
+    '''
+    #test coefficient
+    def test_get_old_gbj_coefficient(self):
+        ''' test coeficient for statistical method with unknown variance
+        '''
+        sample_size = [4, 8, 12, 20, 50]
+        lambda1, _, lambda3, _, _ = caccep.__get_old_gbj_coefficient__(sample_size[2])
+        self.assertEqual(lambda1, 1.7)
+        self.assertEqual(lambda3, 0.9)
+        lambda1, _, lambda3, _, _ = caccep.__get_old_gbj_coefficient__(sample_size[3])
+        self.assertEqual(lambda1, 1.65)
+        self.assertEqual(lambda3, 0.85)
+        lambda1, _, lambda3, _, _ = caccep.__get_old_gbj_coefficient__(sample_size[4])
+        self.assertEqual(lambda1, 1.60)
+        self.assertEqual(lambda3, 0.85)
+    #test accepted wiht less samples
+    def test_old_gbj_acception_with_less_samples(self):
+        ''' test acception with less samples
+        '''
+        # accepted
+        average = 33.5
+        fcuk = 25
+        fcumin = 26.4
+        self.assertTrue(caccep.__old_gbj_acception__(average, fcuk, fcumin))
+        #condition one is not satisfied
+        average = 26.4
+        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin))
+        #condition two is not statisfied
+        average = 33.5
+        fcumin = 22.3
+        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin))
+        #the two conditions are not satisfied
+        average = 26.2
+        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin))
 
+    #test acception with statistical method
+    def test_old_gbj_acception_with_statistical_method(self):
+        ''' test acception with statistical method
+        '''
+        average = 33.5
+        std = 4.3
+        fcuk = 25
+        fcumin = 24.3
+        sample_size = 13
+        #accepted
+        self.assertTrue(caccep.__old_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        #the condition one is not satisfied
+        average = 28.3
+        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        average = 33.5
+        std = 6.5
+        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        #the condition two is not staisfied
+        fcumin = 21.3
+        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        
 if __name__ == '__main__':
     unittest.main()
