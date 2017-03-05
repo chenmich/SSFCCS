@@ -45,78 +45,220 @@
 import argparse
 from scipy import stats
 import numpy as np
-import writer_to_csv as write
+import write_to_csv as saver
 
 FCUK_LIST = [25, 35, 45, 55]
 PAST_RATE_LIST = [0.99, 0.98, 0.97, 0.96, 0.95, 0.9, 0.8, 0.50, 0.2]#pass rate
 SIGMA_LIST = [3.5, 4.5, 5.5, 7.5, 9.5]#Variance
-
+SAMPLE_SIZE_LIST = [4, 8, 12, 18, 50]
 #number of simulating
-ECHO = 10
+ECHO = 1
 #the standard probability density function value corresponding to the pass rate
 PPF_LIST = stats.norm.ppf(PAST_RATE_LIST)
-#pylint restrain too many parameters
-def __accepted__(lambda1, lambda2, lambda3, average, std, fcu_k, fcu_min):
-    ''' This function will simulate to accepte a batch of concrete
-        Accepted conditions are both
-            average - lambda1*std >= lambda2*fcu_k
-            fcu_min >= lambda3*fcu_k
-    '''
-    accepted = False
-    if (average - lambda1*std >= lambda2*fcu_k) and (fcu_min >= lambda3*fcu_k):
-        accepted = True
-    return accepted
 
-def __valid_sampling_method__():
+#set lambad coefficient
+def __get_tb_coefficient__(fcuk, sample_size):
+    ''' set all the lambad coefficient
+    '''
+    lambda1 = 0.95
+    lambda2 = 1.0
+    lambda3 = 0.0
+    lambda4 = 0.0
+    lambda5 = 0.0
+    lambda6 = 0.0
+    if sample_size < 5:
+        if fcuk < 20:
+            lambda5 = 3.6
+            lambda6 = 2.4
+        if fcuk >= 20 and fcuk <= 40:
+            lambda5 = 4.7
+            lambda6 = 3.1
+        if fcuk > 40:
+            lambda5 = 5.8
+            lambda6 = 3.9
+    else:
+        if sample_size >= 5 and sample_size < 10:
+            lambda3 = 0.85
+        if sample_size >= 10 and sample_size < 20:
+            lambda3 = 1.10
+        if sample_size >= 20:
+            lambda3 = 1.20
+        if fcuk < 20:
+            lambda4 = 3.5
+        if fcuk >= 20 and fcuk <= 40:
+            lambda4 = 4.5
+        if fcuk > 40:
+            lambda4 = 5.5
+    return lambda1, lambda2, lambda3, lambda4, lambda5, lambda6
+def __get_old_gbj_coefficient__(sample_size):
+    ''' set all the lambda coefficients
+    '''
+    lambda1 = 0.0
+    lambda2 = 0.9
+    lambda3 = 0.0
+    lambda4 = 1.15
+    lambda5 = 0.95
+    if  sample_size >= 10:
+        if sample_size >= 10 and sample_size <= 14:
+            lambda1 = 1.70
+            lambda3 = 0.90
+        if sample_size > 15 and sample_size < 24:
+            lambda1 = 1.65
+            lambda3 = 0.85
+        if sample_size >= 25:
+            lambda1 = 1.60
+            lambda3 = 0.85
+    return lambda1, lambda2, lambda3, lambda4, lambda5
+def __get_new_gbj_coefficient__(fcuk, sample_size):
+    ''' set coefficient for new gbj
+    '''
+    lambda1 = 0.0
+    lambda2 = 1.0
+    lambda3 = 0.0
+    lambda4 = 1.15
+    lambda5 = 0.95
+    if sample_size < 10:
+        if fcuk < 60:
+            lambda4 = 1.15
+        else:
+            lambda4 = 1.10
+    else:
+        if sample_size >= 10 and sample_size <= 14:
+            lambda1 = 1.15
+            lambda3 = 0.9
+        if sample_size <= 19 and sample_size >= 15:
+            lambda1 = 1.05
+            lambda3 = 0.85
+        if sample_size >= 20:
+            lambda1 = 0.95
+            lambda3 = 0.85
+    return lambda1, lambda2, lambda3, lambda4, lambda5
+#pylint restrain too many parameters
+#define accepted for tb
+def __tb_acception__(average, fcuk, fcumin, std, sample_size):
+    ''' This function is for acception by tb
+    '''
+    isaccepted = False
+    lambda1, lambda2, lambda3, lambda4, lambda5, lambda6 = __get_tb_coefficient__(fcuk, sample_size)
+    if sample_size < 5:
+        if average >= fcuk + lambda5 and fcumin >= fcuk - lambda6:
+            isaccepted = True
+    else:
+        if average >= lambda2*fcuk + lambda1*std and fcumin >= fcuk - lambda3*lambda4:
+            isaccepted = True
+    return isaccepted
+
+#define accepted for new gbj
+def __new_gbj_acception__(average, fcuk, fcumin, std, sample_size):
+    ''' This fucntion is for acception by new gbj
+    '''
+    isaccepted = False
+    lambda1, lambda2, lambda3, lambda4, lambda5 = __get_new_gbj_coefficient__(fcuk, sample_size)
+    if  sample_size < 10:
+        if average >= lambda4*fcuk and fcumin >= lambda5*fcuk:
+            isaccepted = True
+    else:
+        if average >= lambda2*fcuk + lambda1*std and fcumin >= lambda3*fcuk:
+            isaccepted = True
+    return isaccepted
+
+#define accepted for old gbj
+def __old_gbj_acception__(average, fcuk, fcumin, std, sample_size):
+    '''This function is for acception by old gbj
+    '''
+    isaccepted = False
+    lambda1, lambda2, lambda3, lambda4, lambda5 = __get_old_gbj_coefficient__(sample_size)
+    #sample_size < 10, by non-statistical method
+    if sample_size < 10:
+        if average >= lambda4*fcuk and fcumin >= lambda5*fcuk:
+            isaccepted = True
+    #sample_size >=10,by statistical methon
+    else:
+        if average - lambda1*std >= lambda2*fcuk and fcumin >= lambda3*fcuk:
+            isaccepted = True
+    return isaccepted
+#save result
+def __save_to__(headers, result, file_name):
+    writer = saver.write_to_csv(headers, result, file_name)
+def __valid_sampling_method__(data_dir):
     ''' valid the GBJ107-87, GBJ50107-2010 and the TB10425
     '''
-    #GBJ08-1987
-    sample_size_list = [12, 20, 50]
-    lam1_list = [1.70, 1.65, 1.60]
-    lam2_list = [0.90, 0.90, 0.90]
-    lam3_list = [0.90, 0.85, 0.85]
-
-    print('simulating the GBJ107-1987......')
-    #combination of judge factors under sample size
-    results = {}
-    for lam1, lam2, lam3, sample_size in zip(lam1_list,
-                                             lam2_list,
-                                             lam3_list,
-                                             sample_size_list):
-        strength_results = {}
-        for fcuk in FCUK_LIST: #compressive strengh standard value
-            sigma_results = {}
-            for sigma in SIGMA_LIST:#for variance
-                accepted_rate_list = []
-                for ppf in PPF_LIST:#for the pass rate
-                    preparation_strength = fcuk + ppf*sigma
-                    receive_frequency = 0
-                    for _ in np.arange(ECHO):
+    old_gbj_result = {}
+    new_gbj_result = {}
+    tb_result = {}
+    for sample_size in SAMPLE_SIZE_LIST:
+        old_gbj_sample_size_result = {}
+        new_gbj_sample_size_result = {}
+        tb_sample_size_result = {}
+        for fcuk in FCUK_LIST:
+            old_gbj_fcuk_result = {}
+            new_gbj_fcuk_result = {}
+            tb_fcuk_result = {}
+            for sigma in SIGMA_LIST:
+                old_gbj_accepted_rate_list = []
+                new_gbj_accepted_rate_list = []
+                tb_accepted_rate_list = []
+                for ppf in PPF_LIST:
+                    old_gbj_accepted_frequence = 0
+                    new_gbj_accepted_frequence = 0
+                    tb_accepted_frequence = 0
+                    for _ in range(ECHO):
+                        preparation_strength = fcuk + ppf*sigma
                         sample_data = stats.norm.rvs(loc=preparation_strength,
                                                      scale=sigma, size=sample_size)
                         average = stats.tmean(sample_data)
                         std = stats.tstd(sample_data)
                         fcumin = stats.tmin(sample_data)
-                        if __accepted__(lam1, lam2, lam3, average, std, fcuk, fcumin):
-                            receive_frequency += 1
-                    accepted_rate = receive_frequency / ECHO
-                    accepted_rate_list.append(accepted_rate)
-                sigma_results[sigma] = accepted_rate_list
-            strength_results[fcuk] = sigma_results
-        results[sample_size] = strength_results
-    header = ['sample_size', 'strength', 'sigma'] + [1 - x for x in PPF_LIST]
-    file_name = 'c://tmp/data/result.csv'
-    write.write_to_csv(header, results, file_name)
-    #GBJ50107-2010
-    print('simlating the GBJ50107-2010......')
-    #TB10425-1994
-    print('simulating the TB10425-1994......')
+                        if __old_gbj_acception__(average, fcuk, fcumin, std, sample_size):
+                            old_gbj_accepted_frequence += 1
+                        if __new_gbj_acception__(average, fcuk, fcumin, std, sample_size):
+                            new_gbj_accepted_frequence += 1
+                        if __tb_acception__(average, fcuk, fcumin, std, sample_size):
+                            tb_accepted_frequence += 1
+                    old_gbj_accepted_rate = old_gbj_accepted_frequence / ECHO
+                    old_gbj_accepted_rate_list.append(old_gbj_accepted_rate)
+                    new_gbj_accepted_rate = new_gbj_accepted_frequence /ECHO
+                    new_gbj_accepted_rate_list.append(new_gbj_accepted_rate)
+                    tb_accepted_rate = tb_accepted_frequence / ECHO
+                    tb_accepted_rate_list.append(tb_accepted_rate)
+                old_gbj_fcuk_result[sigma] = old_gbj_accepted_rate_list
+                new_gbj_fcuk_result[sigma] = new_gbj_accepted_rate_list
+                tb_fcuk_result[sigma] = tb_accepted_rate_list
+            old_gbj_sample_size_result[fcuk] = old_gbj_fcuk_result
+            new_gbj_sample_size_result[fcuk] = new_gbj_fcuk_result
+            tb_sample_size_result[fcuk] = tb_fcuk_result
+        old_gbj_result[sample_size] = old_gbj_sample_size_result
+        new_gbj_result[sample_size] = new_gbj_sample_size_result
+        tb_result[sample_size] = tb_sample_size_result
 
-def main():
+    #write result to file
+    header = ['样本数量', '强度等级', '标准差', "不合格率"]
+    headers = []
+    headers.append(header)
+    header = ['', '', ''] + [1 - x for x in PPF_LIST]
+
+    results = [old_gbj_result, new_gbj_result, tb_result]
+    filenames = ['old_gbj', 'new_gbj', 'tb']
+    for result, filename in zip(results, filenames):
+        __save_to__(header, result, data_dir + filename + ".csv")
+
+def main(args):
     '''control flow'''
-    __valid_sampling_method__()
+    if args.valid:
+        print("Simulating the standard:")
+        #__valid_sampling_method__(args.result_dir)
+    if args.find:
+        print("Fining the arguments for sampling method of acception of concrete:")
 
 
 if __name__ == '__main__':
-    main()
-    
+    PARPASER = argparse.ArgumentParser()
+    PARPASER.add_argument("--valid", "-V", help="valid the current standard",
+                          action="store_true")
+    PARPASER.add_argument("--find", "-F", help="find argument for method of acception",
+                          action="store_true")
+    PARPASER.add_argument("--result_dir",
+                          help="the path of file of results after executing",
+                          type=str, default="c://tmp/data")
+    PARS = PARPASER.parse_args()
+    main(PARS)

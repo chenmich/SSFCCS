@@ -59,9 +59,12 @@ def write_to_csv(header, contents, file_name):
         raise TypeError("The argument header must be a list!")
     if not isinstance(contents, dict) and isinstance(contents, list):
         raise TypeError("The argument contents must be a dict or a list!")
-    with open(file_name, mode='w') as csvfile:
+    with open(file_name, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         #writer.writerow(header)
         csvlines = __write_dictionary_to_csvline__(contents, [])
+        for head in header:
+            writer.writerow(head)
         for line in csvlines:
             writer.writerow(line)
+        
