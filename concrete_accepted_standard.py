@@ -45,14 +45,14 @@
 import argparse
 from scipy import stats
 import numpy as np
-import writer_to_csv as save
+import write_to_csv as saver
 
 FCUK_LIST = [25, 35, 45, 55]
 PAST_RATE_LIST = [0.99, 0.98, 0.97, 0.96, 0.95, 0.9, 0.8, 0.50, 0.2]#pass rate
 SIGMA_LIST = [3.5, 4.5, 5.5, 7.5, 9.5]#Variance
 SAMPLE_SIZE_LIST = [4, 8, 12, 18, 50]
 #number of simulating
-ECHO = 10
+ECHO = 1
 #the standard probability density function value corresponding to the pass rate
 PPF_LIST = stats.norm.ppf(PAST_RATE_LIST)
 
@@ -61,11 +61,11 @@ def __get_tb_coefficient__(fcuk, sample_size):
     ''' set all the lambad coefficient
     '''
     lambda1 = 0.95
-    lambda2 = 1
-    lambda3 = 0
-    lambda4 = 0
-    lambda5 = 0
-    lambda6 = 0
+    lambda2 = 1.0
+    lambda3 = 0.0
+    lambda4 = 0.0
+    lambda5 = 0.0
+    lambda6 = 0.0
     if sample_size < 5:
         if fcuk < 20:
             lambda5 = 3.6
@@ -93,9 +93,9 @@ def __get_tb_coefficient__(fcuk, sample_size):
 def __get_old_gbj_coefficient__(sample_size):
     ''' set all the lambda coefficients
     '''
-    lambda1 = 0
+    lambda1 = 0.0
     lambda2 = 0.9
-    lambda3 = 0
+    lambda3 = 0.0
     lambda4 = 1.15
     lambda5 = 0.95
     if  sample_size >= 10:
@@ -112,9 +112,9 @@ def __get_old_gbj_coefficient__(sample_size):
 def __get_new_gbj_coefficient__(fcuk, sample_size):
     ''' set coefficient for new gbj
     '''
-    lambda1 = 0
+    lambda1 = 0.0
     lambda2 = 1.0
-    lambda3 = 0
+    lambda3 = 0.0
     lambda4 = 1.15
     lambda5 = 0.95
     if sample_size < 10:
@@ -177,9 +177,10 @@ def __old_gbj_acception__(average, fcuk, fcumin, std, sample_size):
         if average - lambda1*std >= lambda2*fcuk and fcumin >= lambda3*fcuk:
             isaccepted = True
     return isaccepted
-
-
-def __valid_sampling_method__():
+#save result
+def __save_to__(headers, result, file_name):
+    writer = saver.write_to_csv(headers, result, file_name)
+def __valid_sampling_method__(data_dir):
     ''' valid the GBJ107-87, GBJ50107-2010 and the TB10425
     '''
     old_gbj_result = {}
@@ -230,22 +231,34 @@ def __valid_sampling_method__():
         new_gbj_result[sample_size] = new_gbj_sample_size_result
         tb_result[sample_size] = tb_sample_size_result
 
-    #header = ['sample_size', 'strength', 'sigma'] + [1 - x for x in PPF_LIST]
-    #file_name = 'c://tmp/data/result.csv'
-    #write.write_to_csv(header, results, file_name)
-    #GBJ50107-2010
-    print(old_gbj_result)
-    print(new_gbj_result)
-    print(tb_result)
-    print('simlating the GBJ50107-2010......')
-    #TB10425-1994
-    print('simulating the TB10425-1994......')
+    #write result to file
+    header = ['样本数量', '强度等级', '标准差', "不合格率"]
+    headers = []
+    headers.append(header)
+    header = ['', '', ''] + [1 - x for x in PPF_LIST]
 
-def main():
+    results = [old_gbj_result, new_gbj_result, tb_result]
+    filenames = ['old_gbj', 'new_gbj', 'tb']
+    for result, filename in zip(results, filenames):
+        __save_to__(header, result, data_dir + filename + ".csv")
+
+def main(args):
     '''control flow'''
-    __valid_sampling_method__()
+    if args.valid:
+        print("Simulating the standard:")
+        #__valid_sampling_method__(args.result_dir)
+    if args.find:
+        print("Fining the arguments for sampling method of acception of concrete:")
 
 
 if __name__ == '__main__':
-    main()
-    
+    PARPASER = argparse.ArgumentParser()
+    PARPASER.add_argument("--valid", "-V", help="valid the current standard",
+                          action="store_true")
+    PARPASER.add_argument("--find", "-F", help="find argument for method of acception",
+                          action="store_true")
+    PARPASER.add_argument("--result_dir",
+                          help="the path of file of results after executing",
+                          type=str, default="c://tmp/data")
+    PARS = PARPASER.parse_args()
+    main(PARS)
