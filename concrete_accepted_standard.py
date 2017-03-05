@@ -50,14 +50,14 @@ import writer_to_csv as save
 FCUK_LIST = [25, 35, 45, 55]
 PAST_RATE_LIST = [0.99, 0.98, 0.97, 0.96, 0.95, 0.9, 0.8, 0.50, 0.2]#pass rate
 SIGMA_LIST = [3.5, 4.5, 5.5, 7.5, 9.5]#Variance
-SAMPLE_SIZE_LIST = [4, 8, 12, 20, 50]
+SAMPLE_SIZE_LIST = [4, 8, 12, 18, 50]
 #number of simulating
 ECHO = 10
 #the standard probability density function value corresponding to the pass rate
 PPF_LIST = stats.norm.ppf(PAST_RATE_LIST)
 
 #set lambad coefficient
-def __get_old_gbj_coefficient__(sample_size=None):
+def __get_old_gbj_coefficient__(sample_size):
     ''' set all the lambda coefficients
     '''
     lambda1 = 0
@@ -65,7 +65,7 @@ def __get_old_gbj_coefficient__(sample_size=None):
     lambda3 = 0
     lambda4 = 1.15
     lambda5 = 0.95
-    if  sample_size is not None:
+    if  sample_size >= 10:
         if sample_size >= 10 and sample_size <= 14:
             lambda1 = 1.70
             lambda3 = 0.90
@@ -76,15 +76,49 @@ def __get_old_gbj_coefficient__(sample_size=None):
             lambda1 = 1.60
             lambda3 = 0.85
     return lambda1, lambda2, lambda3, lambda4, lambda5
-#define accepted for old gbj
+def __get_new_gbj_coefficient__(fcuk, sample_size):
+    lambda1 = 0
+    lambda2 = 1.0
+    lambda3 = 0
+    lambda4 = 1.15
+    lambda5 = 0.95
+    if sample_size < 10:
+        if fcuk < 60:
+            lambda4 = 1.15
+        else:
+            lambda4 = 1.10
+    else:
+        if sample_size >= 10 and sample_size <= 14:
+            lambda1 = 1.15
+            lambda3 = 0.9
+        if sample_size <= 19 and sample_size >= 15:
+            lambda1 = 1.05
+            lambda3 = 0.85
+        if sample_size >= 20:
+            lambda1 = 0.95
+            lambda3 = 0.85
+    return lambda1, lambda2, lambda3, lambda4, lambda5
 #pylint restrain too many parameters
-def __old_gbj_acception__(average, fcuk, fcumin, std=None, sample_size=None):
+#define accepted for new gbj
+def __new_gbj_acception__(average, fcuk, fcumin, std, sample_size):
+    isaccepted = False
+    lambda1, lambda2, lambda3, lambda4, lambda5 = __get_new_gbj_coefficient__(fcuk, sample_size)
+    if  sample_size < 10:
+        if average >= lambda4*fcuk and fcumin >= lambda5*fcuk:
+            isaccepted = True
+    else:
+        if average >= lambda2*fcuk + lambda1*std and fcumin >= lambda3*fcuk:
+            isaccepted = True
+    return isaccepted
+
+#define accepted for old gbj
+def __old_gbj_acception__(average, fcuk, fcumin, std, sample_size):
     '''This function is for acception by old gbj
     '''
     isaccepted = False
     lambda1, lambda2, lambda3, lambda4, lambda5 = __get_old_gbj_coefficient__(sample_size)
     #sample_size < 10, by non-statistical method
-    if sample_size is None:
+    if sample_size < 10:
         if average >= lambda4*fcuk and fcumin >= lambda5*fcuk:
             isaccepted = True
     #sample_size >=10,by statistical methon
@@ -98,14 +132,19 @@ def __valid_sampling_method__():
     ''' valid the GBJ107-87, GBJ50107-2010 and the TB10425
     '''
     old_gbj_result = {}
+    new_gbj_result = {}
     for sample_size in SAMPLE_SIZE_LIST:
         old_gbj_sample_size_result = {}
+        new_gbj_sample_size_result = {}
         for fcuk in FCUK_LIST:
             old_gbj_fcuk_result = {}
+            new_gbj_fcuk_result = {}
             for sigma in SIGMA_LIST:
-                accepted_rate_list = []
+                old_gbj_accepted_rate_list = []
+                new_gbj_accepted_rate_list = []
                 for ppf in PPF_LIST:
-                    accepted_frequence = 0
+                    old_gbj_accepted_frequence = 0
+                    new_gbj_accepted_frequence = 0
                     for _ in range(ECHO):
                         preparation_strength = fcuk + ppf*sigma
                         sample_data = stats.norm.rvs(loc=preparation_strength,
@@ -114,18 +153,26 @@ def __valid_sampling_method__():
                         std = stats.tstd(sample_data)
                         fcumin = stats.tmin(sample_data)
                         if __old_gbj_acception__(average, fcuk, fcumin, std, sample_size):
-                            accepted_frequence += 1
-                    accepted_rate = accepted_frequence / ECHO
-                    accepted_rate_list.append(accepted_rate)
-                old_gbj_fcuk_result[sigma] = accepted_rate_list
+                            old_gbj_accepted_frequence += 1
+                        if __new_gbj_acception__(average, fcuk, fcumin, std, sample_size):
+                            new_gbj_accepted_frequence += 1
+                    old_gbj_accepted_rate = old_gbj_accepted_frequence / ECHO
+                    old_gbj_accepted_rate_list.append(old_gbj_accepted_rate)
+                    new_gbj_accepted_rate = new_gbj_accepted_frequence /ECHO
+                    new_gbj_accepted_rate_list.append(new_gbj_accepted_rate)
+                old_gbj_fcuk_result[sigma] = old_gbj_accepted_rate_list
+                new_gbj_fcuk_result[sigma] = new_gbj_accepted_rate_list
             old_gbj_sample_size_result[fcuk] = old_gbj_fcuk_result
+            new_gbj_sample_size_result[fcuk] = new_gbj_fcuk_result
         old_gbj_result[sample_size] = old_gbj_sample_size_result
+        new_gbj_result[sample_size] = new_gbj_sample_size_result
 
     #header = ['sample_size', 'strength', 'sigma'] + [1 - x for x in PPF_LIST]
     #file_name = 'c://tmp/data/result.csv'
     #write.write_to_csv(header, results, file_name)
     #GBJ50107-2010
     print(old_gbj_result)
+    print(new_gbj_result)
     print('simlating the GBJ50107-2010......')
     #TB10425-1994
     print('simulating the TB10425-1994......')

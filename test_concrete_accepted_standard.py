@@ -16,14 +16,15 @@
 
 import unittest
 import concrete_accepted_standard as caccep
+#test for old gbj acception
 class test_old_gbj(unittest.TestCase):
-    ''' test the helper for old_gjb
+    ''' test the helper for old gbj
     '''
     #test coefficient
     def test_get_old_gbj_coefficient(self):
         ''' test coeficient for statistical method with unknown variance
         '''
-        sample_size = [4, 8, 12, 20, 50]
+        sample_size = [4, 8, 12, 18, 50]
         lambda1, _, lambda3, _, _ = caccep.__get_old_gbj_coefficient__(sample_size[2])
         self.assertEqual(lambda1, 1.7)
         self.assertEqual(lambda3, 0.9)
@@ -41,17 +42,19 @@ class test_old_gbj(unittest.TestCase):
         average = 33.5
         fcuk = 25
         fcumin = 26.4
-        self.assertTrue(caccep.__old_gbj_acception__(average, fcuk, fcumin))
+        std = 3.1
+        sample_size = 8
+        self.assertTrue(caccep.__old_gbj_acception__(average, fcuk, fcumin, std, sample_size))
         #condition one is not satisfied
         average = 26.4
-        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin))
+        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin, std, sample_size))
         #condition two is not statisfied
         average = 33.5
         fcumin = 22.3
-        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin))
+        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin, std, sample_size))
         #the two conditions are not satisfied
         average = 26.2
-        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin))
+        self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin, std, sample_size))
 
     #test acception with statistical method
     def test_old_gbj_acception_with_statistical_method(self):
@@ -73,6 +76,79 @@ class test_old_gbj(unittest.TestCase):
         #the condition two is not staisfied
         fcumin = 21.3
         self.assertFalse(caccep.__old_gbj_acception__(average, fcuk, fcumin, std, sample_size))
-        
+#test for new gbj acception
+class test_new_gbj(unittest.TestCase):
+    ''' test the helper for new gbj
+    '''
+    #test coefficient
+    def test_get_new_gbj_coefficient(self):
+        ''' test coefficient
+        '''
+        sample_size = [4, 8, 12, 18, 50]
+        fcuk = 55
+        _, _, _, lambda4, _ = caccep.__get_new_gbj_coefficient__(fcuk, sample_size[0])
+        self.assertEqual(lambda4, 1.15)
+        fcuk = 60
+        _, _, _, lambda4, _ = caccep.__get_new_gbj_coefficient__(fcuk, sample_size[0])
+        self.assertEqual(lambda4, 1.10)
+        fcuk = 65
+        _, _, _, lambda4, _ = caccep.__get_new_gbj_coefficient__(fcuk, sample_size[0])
+        self.assertEqual(lambda4, 1.10)
+        lambda1, _, lambda3, _, _, = caccep.__get_new_gbj_coefficient__(fcuk,
+                                                                        sample_size=sample_size[2])
+        self.assertEqual(lambda1, 1.15)
+        self.assertEqual(lambda3, 0.9)
+        lambda1, _, lambda3, _, _, = caccep.__get_new_gbj_coefficient__(fcuk,
+                                                                        sample_size=sample_size[3])
+        self.assertEqual(lambda1, 1.05)
+        self.assertEqual(lambda3, 0.85)
+        lambda1, _, lambda3, _, _, = caccep.__get_new_gbj_coefficient__(fcuk,
+                                                                        sample_size=sample_size[4])
+        self.assertEqual(lambda1, 0.95)
+        self.assertEqual(lambda3, 0.85)
+    #test acception with non statistical method
+    def test_new_gbj_acception_with_non_statistical_method(self):
+        ''' test new gbj acception with non statistical method
+        '''
+        fcuk = 30
+        average = 35.3
+        fcumin = 28.6
+        std = 3.1
+        sample_size = 8
+        self.assertTrue(caccep.__new_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        fcuk = 60
+        average = 67.4
+        fcumin = 57.9
+        self.assertTrue(caccep.__new_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        #condition one is not satisfied
+        fcuk = 30
+        average = 33.4
+        fcumin = 28.6
+        self.assertFalse(caccep.__new_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        #condition two is not satisfied
+        average = 35.3
+        fcumin = 27.8
+        self.assertFalse(caccep.__new_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+    #test acception with statistical method
+    def test_new_gbj_acception_with_statistical_method(self):
+        ''' test acception with statistical method
+        '''
+        sample_size = 16
+        average = 46.1
+        fcuk = 40
+        fcumin = 38.4
+        std = 5.3
+        self.assertTrue(caccep.__new_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        #condition one is not satisfied
+        average = 44.5
+        self.assertFalse(caccep.__new_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        average = 46.1
+        std = 7.8
+        self.assertFalse(caccep.__new_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+        #condition two is not statisfied
+        average = 46.1
+        std = 5.3
+        fcumin = 32.1
+        self.assertFalse(caccep.__new_gbj_acception__(average, fcuk, fcumin, std, sample_size))
 if __name__ == '__main__':
     unittest.main()
