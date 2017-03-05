@@ -150,5 +150,89 @@ class test_new_gbj(unittest.TestCase):
         std = 5.3
         fcumin = 32.1
         self.assertFalse(caccep.__new_gbj_acception__(average, fcuk, fcumin, std, sample_size))
+#test for tb acception
+class test_tb(unittest.TestCase):
+    ''' test helper for tb
+    '''
+    #test coefficient
+    def test_get_tb_coefficient(self):
+        ''' test coefficient
+        '''
+        #wiht less sample
+        sample_size = 4
+        fcuk = 15
+        _, _, _, _, lambda5, lambda6 = caccep.__get_tb_coefficient__(fcuk, sample_size)
+        self.assertEqual(lambda5, 3.6)
+        self.assertEqual(lambda6, 2.4)
+        fcuk = 30
+        _, _, _, _, lambda5, lambda6 = caccep.__get_tb_coefficient__(fcuk, sample_size)
+        self.assertEqual(lambda5, 4.7)
+        self.assertEqual(lambda6, 3.1)
+        fcuk = 50
+        _, _, _, _, lambda5, lambda6 = caccep.__get_tb_coefficient__(fcuk, sample_size)
+        self.assertEqual(lambda5, 5.8)
+        self.assertEqual(lambda6, 3.9)
+        #with statistical method
+        sample_size = 7
+        fcuk = 15
+        lambda1, lambda2, lambda3, lambda4, _, _ = caccep.__get_tb_coefficient__(fcuk, sample_size)
+        self.assertEqual(lambda1, 0.95)
+        self.assertEqual(lambda2, 1)
+
+        self.assertEqual(lambda3, 0.85)
+        self.assertEqual(lambda4, 3.5)
+
+        sample_size = 18
+        _, _, lambda3, _, _, _ = caccep.__get_tb_coefficient__(fcuk, sample_size)
+        self.assertEqual(lambda3, 1.1)
+        sample_size = 25
+        _, _, lambda3, _, _, _ = caccep.__get_tb_coefficient__(fcuk, sample_size)
+        self.assertEqual(lambda3, 1.20)
+
+        fcuk = 30
+        _, _, _, lambda4, _, _ = caccep.__get_tb_coefficient__(fcuk, sample_size)
+        self.assertEqual(lambda4, 4.5)
+
+        fcuk = 50
+        _, _, _, lambda4, _, _ = caccep.__get_tb_coefficient__(fcuk, sample_size)
+        self.assertEqual(lambda4, 5.5)
+    #test acception with less sample
+    def test_tb_acception_with_less_sample(self):
+        ''' test tb acception with less sample
+        '''
+        average = 22.2
+        fcuk = 15
+        fcumin = 14.5
+        std = 3.3
+        sample_size = 4
+        self.assertTrue(caccep.__tb_acception__(average, fcuk, fcumin, std, sample_size))
+        #condition one is not statisfie
+        average = 17.3
+        self.assertFalse(caccep.__tb_acception__(average, fcuk, fcumin, std, sample_size))
+        #condition two is not satisfied
+        average = 22.2
+        fcumin = 12.5
+        self.assertFalse(caccep.__tb_acception__(average, fcuk, fcumin, std, sample_size))
+    #test acception with  statistical method
+    def test_tb_acception_with_statistical_method(self):
+        ''' test tb acception with statistical method
+        '''
+        sample_size = 18
+        fcuk = 30
+        average = 35.3
+        fcumin = 28.2
+        std = 5.4
+        self.assertTrue(caccep.__tb_acception__(average, fcuk, fcumin, std, sample_size))
+        #condition one is not statisfied
+        average = 30.2
+        self.assertFalse(caccep.__tb_acception__(average, fcuk, fcumin, std, sample_size))
+        average = 35.3
+        std = 6.4
+        self.assertFalse(caccep.__tb_acception__(average, fcuk, fcumin, std, sample_size))
+        #condition two is not statisfied
+        average = 35.3
+        std = 5.4
+        fcumin = 20.3
+        self.assertFalse(caccep.__tb_acception__(average, fcuk, fcumin, std, sample_size))
 if __name__ == '__main__':
     unittest.main()
