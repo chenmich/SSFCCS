@@ -54,7 +54,7 @@ PAST_RATE_LIST = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.9, 0.8
 SIGMA_LIST = [3.5, 4.5, 5.5, 7.5, 9.5]#Variance
 SAMPLE_SIZE_LIST = [4, 8, 12, 18, 30, 50]
 #number of simulating
-ECHO = 5
+ECHO = 10000
 #the standard probability density function value corresponding to the pass rate
 PPF_LIST = stats.norm.ppf(PAST_RATE_LIST)
 
