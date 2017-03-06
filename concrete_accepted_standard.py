@@ -42,17 +42,19 @@
     The design of sampling method is to find the two factors
     to ensure us not to make the two class of errors.
 '''
+import datetime
+import csv
 import argparse
 from scipy import stats
 import numpy as np
 import write_to_csv as saver
 
 FCUK_LIST = [25, 35, 45, 55]
-PAST_RATE_LIST = [0.99, 0.98, 0.97, 0.96, 0.95, 0.9, 0.8, 0.50, 0.2]#pass rate
+PAST_RATE_LIST = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.9, 0.8, 0.50, 0.2]#pass rate
 SIGMA_LIST = [3.5, 4.5, 5.5, 7.5, 9.5]#Variance
-SAMPLE_SIZE_LIST = [4, 8, 12, 18, 50]
+SAMPLE_SIZE_LIST = [4, 8, 12, 18, 30, 50]
 #number of simulating
-ECHO = 1
+ECHO = 5
 #the standard probability density function value corresponding to the pass rate
 PPF_LIST = stats.norm.ppf(PAST_RATE_LIST)
 
@@ -183,6 +185,8 @@ def __save_to__(headers, result, file_name):
 def __valid_sampling_method__(data_dir):
     ''' valid the GBJ107-87, GBJ50107-2010 and the TB10425
     '''
+    start = datetime.datetime.now()
+    print(start)
     old_gbj_result = {}
     new_gbj_result = {}
     tb_result = {}
@@ -240,15 +244,138 @@ def __valid_sampling_method__(data_dir):
     results = [old_gbj_result, new_gbj_result, tb_result]
     filenames = ['old_gbj', 'new_gbj', 'tb']
     for result, filename in zip(results, filenames):
-        __save_to__(header, result, data_dir + filename + ".csv")
+        __save_to__(headers, result, data_dir + filename + ".csv")
+    end = datetime.datetime.now()
+    print(end)
+    print("All the time are ", (end - start))
+#simulating for get the two accepted rates
+def __get_accepted_rate__(lambda1, lambda2, ppf, sample_size):
+    fcuk = 40
+    sigma = 6.0
+    preparared_strength0 = fcuk + ppf*sigma
+    accepted_frequence = 0
+    for _ in range(ECHO):
+        sample_data = stats.norm.rvs(loc=preparared_strength0, scale=sigma, size=sample_size)
+        mean = stats.tmean(sample_data)
+        std = stats.tstd(sample_data)
+        if mean >= lambda1*fcuk + lambda2*std:
+            accepted_frequence += 1
+    ap = accepted_frequence / ECHO
+    return ap
 
+#find argument for sampling method
+def __find_argument_sampling__(file_name):
+    ''' Find the argument for sampling method
+        In general, we accepte a batch of concrete by statistical method with unknown variance.
+        The universal equations is:
+            average - lambda1*std >= lambda2*fcuk
+            fcumin >= lambda3*fcuk + lambda4
+        It is well known that the first equation is base equation because
+        it is base on statistics.
+        And the second equation is for limiting the minimum value of sample data for preventing from
+        the minumum is to small. This is base on industry facts.
+        For simplicity, the arguments of the first equation are found.
+        The Criterion for the arguments are based on the fact:
+            when pass_rate of groups of samples is larger than 95%,
+                the accepted rate must be larger than 95%;
+            when pass_rate of groups of samples is less than 80%,
+                the accepted rate must be less than 20%;
+            so, when pass_rate of groups of samples is less than 95%,
+                the accepted rate must have sharp drop.
+        By formal, it is written as:
+            p1 >= 95% if p1 < 95%, then |p1 - 95%|/95% <= 5% .........(1)
+            p2 <= 20% if p2 > 20%, then |p2 - 20%|/20% <= 5% .........(2)
+        where:
+            p1:the accepted rate at pass rate is 95%, the expected value is 95%
+            p2:the accepted rate at pass rate is 80%, the expected value is 20%
+        Only if (1) and (2) statisfied, the other accepted rate will be got by simulating acception
+    '''
+    lambdas1 = np.arange(0.9, 2.5, 0.05)
+    lambdas2 = np.arange(0.8, 2.0, 0.05)
+    pr0 = 0.95
+    pr1 = 0.80
+    alpha = 0.95
+    beta = 0.30
+    error_rate0 = 0.15
+    error_rate1 = 0.50
+    ppf0 = stats.norm.ppf(pr0)
+    ppf1 = stats.norm.ppf(pr1)
+    start = datetime.datetime.now()
+    print(start)
+    all_candidates = {}
+    for sample_size in SAMPLE_SIZE_LIST:
+        lambda_candidates = []
+        for lambda1 in lambdas1:
+            for lambda2 in lambdas2:
+                OK = False
+                ap0 = __get_accepted_rate__(lambda1, lambda2, ppf0, sample_size)
+                ap1 = __get_accepted_rate__(lambda1, lambda2, ppf1, sample_size)
+                diffi0 = abs(ap0 - alpha) <= alpha*error_rate0
+                diffi1 = abs(ap1 - beta) <= beta*error_rate1
+                if ap0 >= alpha and ap1 <= beta:
+                    OK = True
+                if ap0 < alpha and ap1 <= beta:
+                    if diffi0:
+                        OK = True
+                if ap0 >= alpha and ap1 > beta:
+                    if diffi1:
+                        OK = True
+                if ap0 < alpha and ap1 > beta:
+                    if diffi0 and diffi1:
+                        OK = True
+                if OK:
+                    lambda_candidate = [lambda1, lambda2, ap0, ap1]
+                    lambda_candidates.append(lambda_candidate)
+        all_candidates[sample_size] = lambda_candidates
+
+
+    result = {}
+    for sample_size in SAMPLE_SIZE_LIST:
+        lambda_and_aps = all_candidates[sample_size]
+        lambda_and_allap = []
+        for lambda_and_ap  in lambda_and_aps:
+            ap = 0
+            aps = []
+            lambda1 = lambda_and_ap[0]
+            lambda2 = lambda_and_ap[1]
+            ap0 = lambda_and_ap[2]
+            ap1 = lambda_and_ap[3]
+            for ppf in PPF_LIST:
+                if ppf == ppf0:
+                    ap = ap0
+                if ppf == ppf1:
+                    ap = ap1
+                if ppf != ppf0 and ppf != ppf1:
+                    ap = __get_accepted_rate__(lambda1, lambda2, ppf, sample_size)
+                aps.append(ap)
+            lambda_and_allap.append([lambda1, lambda2] + aps)
+        result[sample_size] = lambda_and_allap
+
+    with open(file_name, mode='w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["数据批量", "lambda1", "lambda2", "不合格率"])
+        writer.writerow(['', '', ''] + [1-x for x in PAST_RATE_LIST])
+        for sample_size in SAMPLE_SIZE_LIST:
+            lines = result[sample_size]
+            writer.writerow([sample_size] + lines[0])
+            for line in lines[1:]:
+                writer.writerow([''] + line)
+
+    end = datetime.datetime.now()
+    print(end)
+    print("difference of time is ", (end - start))
+
+
+
+#main control
 def main(args):
     '''control flow'''
     if args.valid:
         print("Simulating the standard:")
-        #__valid_sampling_method__(args.result_dir)
+        __valid_sampling_method__(args.result_dir)
     if args.find:
         print("Fining the arguments for sampling method of acception of concrete:")
+        __find_argument_sampling__(args.result_dir + "/found_result.csv")
 
 
 if __name__ == '__main__':
