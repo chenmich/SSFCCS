@@ -49,7 +49,7 @@ from scipy import stats
 import numpy as np
 import write_to_csv as saver
 
-FCUK_LIST = [25, 35, 45, 55]
+FCUK_LIST = [25, 35, 45, 55, 65]
 PAST_RATE_LIST = [0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.9, 0.8, 0.50, 0.2]#pass rate
 SIGMA_LIST = [3.5, 4.5, 5.5, 7.5, 9.5]#Variance
 SAMPLE_SIZE_LIST = [4, 8, 12, 18, 30, 50]
@@ -290,8 +290,8 @@ def __find_argument_sampling__(file_name):
             p2:the accepted rate at pass rate is 80%, the expected value is 20%
         Only if (1) and (2) statisfied, the other accepted rate will be got by simulating acception
     '''
-    lambdas1 = np.arange(0.9, 2.5, 0.05)
-    lambdas2 = np.arange(0.8, 2.0, 0.05)
+    lambdas1 = np.arange(0.85, 2.5, 0.05)
+    lambdas2 = np.arange(0.70, 2.0, 0.05)
     pr0 = 0.95
     pr1 = 0.80
     alpha = 0.95
@@ -375,7 +375,7 @@ def main(args):
         __valid_sampling_method__(args.result_dir)
     if args.find:
         print("Fining the arguments for sampling method of acception of concrete:")
-        __find_argument_sampling__(args.result_dir + "/found_result.csv")
+        __find_argument_sampling__(args.result_dir + "found_result.csv")
 
 
 if __name__ == '__main__':
@@ -386,6 +386,6 @@ if __name__ == '__main__':
                           action="store_true")
     PARPASER.add_argument("--result_dir",
                           help="the path of file of results after executing",
-                          type=str, default="c://tmp/data")
+                          type=str, default="c://tmp/data/")
     PARS = PARPASER.parse_args()
     main(PARS)
