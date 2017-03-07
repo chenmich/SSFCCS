@@ -240,7 +240,7 @@ def __valid_sampling_method__(data_dir):
     headers = []
     headers.append(header)
     header = ['', '', ''] + [1 - x for x in PPF_LIST]
-
+    headers.append(header)
     results = [old_gbj_result, new_gbj_result, tb_result]
     filenames = ['old_gbj', 'new_gbj', 'tb']
     for result, filename in zip(results, filenames):
